@@ -1,0 +1,21 @@
+.appointments-page { gap: 20px; }
+.appointments-heading { align-items: flex-start; }
+.appointments-heading h1 { margin-top: 0; }
+.appointments-filter { overflow: hidden; }
+.appointment-filter-grid { display: grid; grid-template-columns: minmax(190px, 1.5fr) repeat(4, minmax(130px, 1fr)) auto; align-items: end; gap: 12px; padding: 16px; }
+.appointment-search > div { display: flex; min-width: 0; align-items: center; border: 1px solid #d9dcde; border-radius: 6px; background: #fff; }
+.appointment-search > div:focus-within { border-color: #cf767b; box-shadow: 0 0 0 3px #e52d3518; }
+.appointment-search > div > span { display: grid; width: 40px; height: 37px; flex: 0 0 auto; place-items: center; border-right: 1px solid #e7e9eb; color: #80868b; font-size: 22px; }
+.appointment-search input { border: 0; box-shadow: none !important; }
+.appointment-search input:focus { border: 0; }
+.appointment-filter-actions { display: flex; gap: 5px; }
+.appointment-filter-actions button { display: grid; width: 39px; height: 39px; place-items: center; border: 1px solid #e0e2e4; border-radius: 6px; background: #f1f2f3; color: #60676d; font-size: 17px; transition: .18s; }
+.appointment-filter-actions .appointment-apply { border-color: var(--red); background: var(--red); color: #fff; }
+.appointment-filter-actions .appointment-apply:hover { border-color: var(--red-dark); background: var(--red-dark); }
+.appointment-filter-actions .appointment-reset:hover { border-color: #d7a5a8; color: var(--red-dark); }
+.appointments-empty { display: flex; min-height: 210px; align-items: center; flex-direction: column; justify-content: center; gap: 9px; padding: 24px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 2px 7px #25282b08; color: #545b61; text-align: center; }
+.empty-calendar-icon { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 2px; border: 1px solid #f0d9da; border-radius: 12px; background: #fbefef; color: var(--red); font-size: 21px; }
+.appointments-empty strong { color: #3d444a; font-size: 13px; font-weight: 650; }
+.appointments-empty p { margin: 0; color: #858a8e; font-size: 11px; }
+@media (max-width: 1000px) { .appointment-filter-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); } }
+@media (max-width: 600px) { .appointment-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px 8px; padding: 12px; } .appointment-search { grid-column: 1 / -1; } .appointment-filter-actions { justify-content: flex-end; } .appointments-empty { min-height: 170px; } }
