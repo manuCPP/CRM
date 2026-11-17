@@ -1,0 +1,20 @@
+{
+  "name": "immobiliare-lead-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "authorize:gmail": "node src/authorize-gmail.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "dotenv": "^16.4.7",
+    "googleapis": "^190.0.0",
+    "mailparser": "^3.7.2",
+    "telegraf": "^4.16.3"
+  }
+}
