@@ -1,105 +1,138 @@
-<script setup>
-const leads = [
-  { name: 'ROBERTO CARDONE', date: '17/11/2026' },
-  { name: 'Salvatore', date: '17/11/2026' },
-  { name: 'Giuseppe Dangelo', date: '17/11/2026' },
-  { name: 'Piero Rivarone', date: '16/11/2026' },
-  { name: 'Priscila Ducatti', date: '16/11/2026', noPhone: true },
-]
-const days = ['11/11', '12/11', '13/11', '14/11', '15/11', '16/11', '17/11']
+﻿<script setup>
+import { onMounted, ref } from 'vue'
+import { instanceConfig } from '../config/instance.js'
+
+const props = defineProps({
+  agencyName: { type: String, default: instanceConfig.agencyName },
+  agencyLocation: { type: String, default: instanceConfig.agencyLocation },
+  accessToken: { type: String, required: true },
+})
+const emit = defineEmits(['navigate', 'open-lead'])
+const totalLeads = ref(0)
+const newLeads = ref(0)
+const recentLeads = ref([])
+const loading = ref(false)
+const error = ref('')
+const supabaseUrl = instanceConfig.supabaseUrl
+const supabaseKey = instanceConfig.supabasePublishableKey
+const table = instanceConfig.leadsTable
+
+function resultCount(response, rows) {
+  const range = response.headers.get('content-range')
+  const total = range?.split('/').at(-1)
+  return total && total !== '*' ? Number(total) : rows.length
+}
+
+async function queryLeads(filters, range) {
+  const params = new URLSearchParams(filters)
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/${encodeURIComponent(table)}?${params}`, {
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${props.accessToken}`,
+      Range: range,
+      Prefer: 'count=exact',
+    },
+  })
+  if (!response.ok) throw new Error(`Supabase (${response.status}): ${await response.text()}`)
+  const rows = await response.json()
+  return { rows, count: resultCount(response, rows) }
+}
+
+async function loadOverview() {
+  loading.value = true
+  error.value = ''
+  try {
+    const fields = 'crm_id,name,email,phone,status,source,created_at'
+    const [recent, fresh] = await Promise.all([
+      queryLeads({ select: fields, order: 'created_at.desc' }, '0-4'),
+      queryLeads({ select: 'crm_id', status: 'eq.NUOVO' }, '0-0'),
+    ])
+    totalLeads.value = recent.count
+    newLeads.value = fresh.count
+    recentLeads.value = recent.rows
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'Impossibile caricare la panoramica.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('it-IT', { dateStyle: 'short' }).format(date)
+}
+
+onMounted(loadOverview)
 </script>
 
 <template>
-<div class="dashboard-content">
-        
+  <section class="overview-page">
+    <header class="overview-heading">
+      <div><span class="overview-kicker">{{ agencyName }}<template v-if="agencyLocation"> / {{ agencyLocation }}</template></span><h2>Panoramica</h2><p>Riepilogo dei lead della tua agenzia.</p></div>
+      <button class="overview-primary" @click="emit('navigate', 'Lead')">Vai ai lead <span aria-hidden="true">&rarr;</span></button>
+    </header>
 
-        
+    <p v-if="error" class="overview-message" role="alert">{{ error }}</p>
+    <p v-else-if="loading" class="overview-message" role="status">Aggiornamento dati...</p>
 
-        
+    <div class="overview-metrics">
+      <article class="overview-metric"><span class="metric-mark">L</span><div><p>LEAD TOTALI</p><strong>{{ loading ? '...' : totalLeads.toLocaleString('it-IT') }}</strong></div></article>
+      <article class="overview-metric"><span class="metric-mark metric-mark-new">+</span><div><p>NUOVI LEAD</p><strong>{{ loading ? '...' : newLeads.toLocaleString('it-IT') }}</strong></div></article>
+    </div>
 
-        
-
-        
-
-        
-        <section class="dashboard-section">
-          <div class="section-heading">
-            <div><span class="section-kicker brand-kicker"><span class="brand-mark-mini" aria-hidden="true"><i></i><i></i></span><span>PROFESSIONECASA</span><span class="brand-location">SCANDIANO</span></span><h2>Panoramica CRM</h2></div>
-            <p>Lead, propriet&agrave;, appuntamenti e agenti</p>
-          </div>
-<section class="entity-grid">
-          <article class="entity-card lead-card"><h2>Lead</h2><strong>6663</strong><p><b>5925 nuovi</b> (non ancora aperti)</p><a href="#" @click.prevent="activeNav = 'Lead'">Gestisci Lead <span>›</span></a></article>
-          <article class="entity-card property-card"><h2>Proprietà</h2><strong>71</strong><a href="#" @click.prevent="activeNav = 'Proprietà'">Gestisci Proprietà</a></article>
-          <article class="entity-card appointment-card"><h2>Appuntamenti</h2><strong>0 / 0</strong><a href="#" @click.prevent="activeNav = 'Appuntamenti'">Gestisci Appuntamenti</a></article>
-          <article class="entity-card agent-card"><h2>Agenti</h2><strong>1</strong><a href="#" @click.prevent="activeNav = 'Agenti'">Gestisci Agenti</a></article>
-        </section>
-        </section>
-        <section class="dashboard-section">
-          <div class="section-heading">
-            <div><span class="section-kicker">PC SCANDIANO</span><h2>Crediti e messaggi</h2></div>
-            <p>Utilizzo e servizi attivi</p>
-          </div>
-<section class="top-grid">
-          <article class="usage-card">
-            <div><span class="eyebrow">WHATSAPP - LIMITE<br />TEMPLATE 24H</span><strong class="usage-value">3/250 <span>1,2% Uso:</span></strong><p>Uso: 1,2%</p><p>Aggiornato: 2026-11-17<br />04:10:03</p></div>
-            <span class="wa-icon" aria-label="WhatsApp">◉</span>
-          </article>
-          <article class="summary-card">
-            <span class="card-label cyan">CREDITI TOTALI</span><strong class="summary-number">3.979</strong>
-            <div class="split-stats"><div><span class="red">MENSILI</span><b>2.979</b></div><div><span class="green">ACQUISTATI</span><b>1.000</b></div></div>
-            <button class="buy-button">ACQUISTA CREDITI</button>
-          </article>
-          <article class="summary-card">
-            <span class="card-label red">MESSAGGI GESTITI</span><strong class="summary-number">316</strong>
-            <div class="split-stats"><div><span class="cyan">↗ INVIATI</span><b>53</b></div><div><span class="cyan">↙ RICEVUTI</span><b>263</b></div></div>
-          </article>
-          <article class="summary-card feature-card">
-            <span class="card-label orange">FUNZIONALITÀ ATTIVE</span><strong class="feature-count">1</strong><p><span class="check">✓</span> Whatsapp Number Check</p>
-          </article>
-        </section>
-        </section>
-        <section class="dashboard-section">
-          <div class="section-heading">
-            <div><span class="section-kicker">PC SCANDIANO</span><h2>Attivit&agrave; recente</h2></div>
-            <p>Ultimi lead e prossimi appuntamenti</p>
-          </div>
-<section class="tables-grid">
-          <article class="panel">
-            <h2 class="panel-heading">ULTIMI LEAD</h2>
-            <div class="table-wrap"><table><thead><tr><th>NOME</th><th>EMAIL</th><th>TELEFONO</th><th>MESSAGGI</th><th>DATA</th></tr></thead>
-              <tbody><tr v-for="lead in leads" :key="lead.name"><td>{{ lead.name }}</td><td class="mail">✉</td><td :class="{ muted: lead.noPhone }">{{ lead.noPhone ? '-' : '☎' }}</td><td><span class="message-count">0</span></td><td>{{ lead.date }}</td></tr></tbody>
-            </table></div>
-          </article>
-          <article class="panel">
-            <h2 class="panel-heading">PROSSIMI APPUNTAMENTI</h2>
-            <div class="table-wrap"><table><thead><tr><th>LEAD</th><th>AGENTE</th><th>DATA</th><th>STATO</th></tr></thead><tbody></tbody></table></div>
-          </article>
-        </section>
-        </section>
-        <section class="dashboard-section">
-          <div class="section-heading">
-            <div><span class="section-kicker">PC SCANDIANO</span><h2>Telefonate perse</h2></div>
-            <p>Riepilogo, andamento e dettaglio</p>
-          </div>
-<section class="mini-grid">
-          <article class="mini-card"><span class="orange">CHIAMATE PERSE TOTALI</span><strong>0</strong></article>
-          <article class="mini-card"><span class="red">NON GESTITE</span><strong>0</strong></article>
-          <article class="mini-card"><span class="green">OGGI</span><strong>0</strong></article>
-          <article class="mini-card"><span class="cyan">QUESTA SETTIMANA</span><strong>0</strong></article>
-        </section>
-<section class="charts-grid">
-          <article class="panel chart-panel"><h2 class="panel-heading">ANDAMENTO CHIAMATE PERSE (ULTIMI 7 GIORNI)</h2>
-            <div class="chart"><div class="y-label">1</div><div class="plot"><div class="gridline top"></div><div class="gridline bottom"></div><div class="zero-line"></div><div class="y-zero">0</div>
-              <div v-for="(day, i) in days" :key="day" class="chart-tick" :style="{ left: (i * 100 / (days.length - 1)) + '%' }"><span class="point"></span><span class="x-label">{{ day }}</span></div>
-            </div></div>
-          </article>
-          <article class="panel source-panel"><h2 class="panel-heading">CHIAMATE PER FONTE</h2><div class="empty-chart"></div></article>
-        </section>
-<section class="panel missed-panel">
-          <h2 class="panel-heading">ULTIME CHIAMATE PERSE <small>ULTIME 10 CHIAMATE</small></h2>
-          <div class="table-wrap"><table><thead><tr><th>NOME</th><th>TELEFONO</th><th>EMAIL</th><th>DATA/ORA</th><th>FONTE</th><th>AGENTE</th><th>GESTIONE LEAD</th><th>STATO CHIAMATA</th></tr></thead>
-            <tbody><tr><td colspan="8" class="empty-row">Nessuna chiamata persa</td></tr></tbody></table></div>
-        </section>
-        </section>
+    <section class="overview-recent">
+      <header><div><span class="overview-kicker">ATTIVITA'</span><h3>Lead recenti</h3></div><button @click="loadOverview" :disabled="loading">AGGIORNA</button></header>
+      <div v-if="!loading && !error && !recentLeads.length" class="overview-empty">I lead ricevuti compariranno qui.</div>
+      <div v-else-if="recentLeads.length" class="overview-table-wrap">
+        <table>
+          <thead><tr><th>LEAD</th><th>CONTATTO</th><th>STATO</th><th>RICEVUTO</th><th><span class="sr-only">Apri</span></th></tr></thead>
+          <tbody>
+            <tr v-for="lead in recentLeads" :key="lead.crm_id">
+              <td><strong>{{ lead.name || 'Nuovo lead' }}</strong><small>{{ lead.source || 'email' }}</small></td>
+              <td><span>{{ lead.email || '-' }}</span><small>{{ lead.phone || '' }}</small></td>
+              <td><span class="overview-status">{{ lead.status || 'NUOVO' }}</span></td>
+              <td>{{ formatDate(lead.created_at) }}</td>
+              <td><button class="overview-open" :aria-label="`Apri ${lead.name || 'lead'}`" @click="emit('open-lead', lead.crm_id)">&rarr;</button></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+    </section>
+  </section>
 </template>
+
+<style scoped>
+.overview-page { display: grid; gap: 18px; }
+.overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 10px; background: #fff; }
+.overview-kicker { color: var(--red-dark); font-size: 9px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; }
+.overview-heading h2 { margin: 7px 0 4px; color: var(--ink); font-size: 25px; letter-spacing: -.6px; }
+.overview-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.overview-primary { min-height: 38px; display: inline-flex; align-items: center; gap: 11px; padding: 0 13px; border: 0; border-radius: 6px; background: var(--red); color: #fff; font-size: 11px; font-weight: 750; }
+.overview-primary:hover { background: var(--red-dark); }
+.overview-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.overview-metric { display: flex; align-items: center; gap: 13px; min-height: 105px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.metric-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 9px; background: #f7e9ea; color: var(--red-dark); font-size: 13px; font-weight: 800; }
+.metric-mark-new { background: #edf4ef; color: #3d7c53; font-size: 21px; }
+.overview-metric p { margin: 0 0 5px; color: #858b90; font-size: 9px; font-weight: 800; letter-spacing: .6px; }
+.overview-metric strong { color: var(--ink); font-size: 23px; letter-spacing: -.5px; }
+.overview-recent { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.overview-recent > header { display: flex; align-items: center; justify-content: space-between; padding: 16px 19px; border-bottom: 1px solid #eceeef; }
+.overview-recent h3 { margin: 4px 0 0; color: var(--ink); font-size: 15px; }
+.overview-recent > header button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: #60676c; font-size: 9px; font-weight: 750; }
+.overview-recent > header button:disabled { opacity: .5; }
+.overview-table-wrap { overflow-x: auto; }
+.overview-table-wrap table { width: 100%; min-width: 620px; border-collapse: collapse; text-align: left; }
+.overview-table-wrap th { padding: 10px 14px; background: #f7f8f8; color: #80868a; font-size: 8px; letter-spacing: .65px; }
+.overview-table-wrap td { padding: 12px 14px; border-top: 1px solid #eff0f1; color: #555d62; font-size: 11px; }
+.overview-table-wrap td strong, .overview-table-wrap td small { display: block; }
+.overview-table-wrap td strong { color: #303438; font-size: 11px; }
+.overview-table-wrap td small { margin-top: 4px; color: #858b90; font-size: 9px; }
+.overview-status { display: inline-block; padding: 4px 7px; border-radius: 999px; background: #fbecee; color: var(--red-dark); font-size: 8px; font-weight: 750; }
+.overview-open { width: 28px; height: 28px; border: 1px solid #f0d9da; border-radius: 6px; background: #fff7f7; color: var(--red-dark); }
+.overview-empty, .overview-message { padding: 24px; color: #70777c; font-size: 12px; }
+.overview-message { margin: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.overview-message[role='alert'] { border-color: #efcccf; color: var(--red-dark); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 650px) { .overview-heading { align-items: flex-start; flex-direction: column; padding: 18px; }.overview-metrics { grid-template-columns: 1fr; } }
+</style>
